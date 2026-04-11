@@ -120,7 +120,7 @@ class ModifiedGPT(nn.Module):
 
     def _init_weights(self) -> None:
         if self.tie_embeddings:
-            nn.init.normal_(self.tok_emb.weight, mean=0.0, std=self.tied_embed_init_std)
+            nn.init.normal_(self.factory.byte_embedding.weight, mean=0.0, std=self.tied_embed_init_std)
         for module in self.modules():
             if isinstance(module, nn.Linear) and getattr(module, "_zero_init", False):
                 nn.init.zeros_(module.weight)
@@ -146,7 +146,7 @@ class ModifiedGPT(nn.Module):
         x = self.final_norm(x).reshape(-1, x.size(-1))
         targets = target_ids.reshape(-1)
         if self.tie_embeddings:
-            logits_proj = F.linear(x, self.tok_emb.weight)
+            logits_proj = F.linear(x, self.factory.byte_embedding.weight)
         else:
             if self.lm_head is None:
                 raise RuntimeError("lm_head is required when tie_embeddings=False")
