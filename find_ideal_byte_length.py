@@ -66,7 +66,7 @@ def analyze_vocab_lengths(spm_model_path):
 max_bytes = analyze_vocab_lengths('./data/tokenizers/fineweb_1024_bpe.model')
 
 
-def build_cheat_table(spm_model_path, max_bytes):
+def build_byte_table(spm_model_path, max_bytes):
     sp = spm.SentencePieceProcessor(model_file=spm_model_path)
 
     # get the vocab size
@@ -112,8 +112,10 @@ def build_cheat_table(spm_model_path, max_bytes):
 
     return cheat_table
 
-my_cheat_sheet = build_cheat_table('./data/tokenizers/fineweb_1024_bpe.model', max_bytes)
+if __name__ == "__main__":
+    max_bytes = analyze_vocab_lengths('./data/tokenizers/fineweb_1024_bpe.model')   
+    my_byte_table = build_byte_table('./data/tokenizers/fineweb_1024_bpe.model', max_bytes)
 
-# Save it to disk so the model can load it instantly during training
-torch.save(my_cheat_sheet, 'cheat_sheet.pt')
-print("Cheat sheet generated and saved! Shape:", my_cheat_sheet.shape)
+    # Save it to disk so the model can load it instantly during training
+    torch.save(my_byte_table, 'byte_table.pt')
+    print("Byte table generated and saved! Shape:", my_byte_table.shape)
