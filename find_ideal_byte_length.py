@@ -1,6 +1,14 @@
 import sentencepiece as spm
 import torch
 
+# Rows for `nn.Embedding` in DictionaryFactory / `build_byte_table`:
+# - 0: padding (Embedding.padding_idx)
+# - 1–256: UTF-8 byte b stored as (b + 1)
+# - 257 + meta_id: SentencePiece control/unknown token ids (e.g. <pad>=0 … <unk>=3 → 257..260)
+# Max index is 260 ⇒ num_embeddings must be **261**.
+BYTE_BARCODE_VOCAB_SIZE = 261
+
+
 def analyze_vocab_lengths(spm_model_path):
     sp = spm.SentencePieceProcessor()
     sp.load(spm_model_path)
@@ -78,11 +86,17 @@ def build_byte_table(spm_model_path, max_bytes):
     for token_id in range(vocab_size):
         token = sp.id_to_piece(token_id)
 
-        # RULE 1: Handle Control Tokens (<unk>, <s>, </s>)
+        # RULE 1: Control / unknown tokens → rows 257 + token_id (needs BYTE_BARCODE_VOCAB_SIZE).
         if sp.is_control(token_id) or sp.is_unknown(token_id):
             print(f"Control token: {token} (token_id: {token_id})")
-            # arbirarily assign a value to the control tokens
-            cheat_table[token_id, 0] = 257 + token_id
+            idx = 257 + token_id
+            if idx >= BYTE_BARCODE_VOCAB_SIZE:
+                raise ValueError(
+                    f"{token!r} token_id={token_id} → barcode row {idx}, "
+                    f"but BYTE_BARCODE_VOCAB_SIZE={BYTE_BARCODE_VOCAB_SIZE}. "
+                    "Increase BYTE_BARCODE_VOCAB_SIZE or remap controls."
+                )
+            cheat_table[token_id, 0] = idx
             continue
         
         # RULE 2: Handle Special Fallback Tokens (<0xEA>) and map them to

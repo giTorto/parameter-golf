@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from find_ideal_byte_length import build_byte_table, analyze_vocab_lengths
+from find_ideal_byte_length import BYTE_BARCODE_VOCAB_SIZE, analyze_vocab_lengths, build_byte_table
 from transformer_layers import CastedLinear, CausalSelfAttention, MLP, RMSNorm
 
 
@@ -16,8 +16,8 @@ class DictionaryFactory(nn.Module):
         # 1. The Barcode Maker (260 slots)
         # 0 = Padding
         # 1-256 = Standard text + Byte Fallbacks
-        # 257-259 = Control Tokens (<s>, </s>, <unk>)
-        self.byte_embedding = nn.Embedding(260, bytes_dim, padding_idx=0)
+        # 257-259 = Control Tokens (<s>, </s>, <unk>, <pad>)
+        self.byte_embedding = nn.Embedding(261, bytes_dim, padding_idx=0)
 
         # 2. simplified H-Net, stretching bytes to d_model
         self.stretching_engine = nn.Linear(max_bytes * bytes_dim, d_model)
