@@ -12,7 +12,7 @@ from find_ideal_byte_length import build_byte_table
 
 class DictionaryFactory(nn.Module):
 
-    def __init__(self, vocab_size: int, max_bytes: int=8, bytes_dim: int=16, d_model: int):
+    def __init__(self, vocab_size: int, max_bytes: int=8, bytes_dim: int=16, d_model: int=512):
         super().__init__()
         self.vocab_size = vocab_size
         
