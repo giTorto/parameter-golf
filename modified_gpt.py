@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from find_ideal_byte_length import build_byte_table
+from find_ideal_byte_length import build_byte_table, analyze_vocab_lengths
 from transformer_layers import CastedLinear, CausalSelfAttention, MLP, RMSNorm
 
 
@@ -93,11 +93,11 @@ class ModifiedGPT(nn.Module):
         self.tied_embed_init_std = tied_embed_init_std
         self.logit_softcap = logit_softcap
         self.factory = DictionaryFactory(vocab_size, model_dim)
-        self.cheat_sheet = cheat_sheet
         self.num_encoder_layers = num_layers // 2
         self.num_decoder_layers = num_layers - self.num_encoder_layers
         self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
-        self.byte_table = build_byte_table(vocab_size, model_dim)
+        max_bytes = analyze_vocab_lengths('./data/tokenizers/fineweb_1024_bpe.model')
+        self.byte_table = build_byte_table(vocab_size, max_bytes)
         self.skip_weights = nn.Parameter(torch.ones(self.num_skip_weights, model_dim, dtype=torch.float32))
         self.blocks = nn.ModuleList(
             [
