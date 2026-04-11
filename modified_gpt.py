@@ -23,7 +23,7 @@ class DictionaryFactory(nn.Module):
         self.stretching_engine = nn.Linear(max_bytes * bytes_dim, d_model)
 
         # 1. Initialize the byte embeddings with normal distribution
-        nn.init.normal_(self.byte_embed.weight, mean=0.0, std=0.005)
+        nn.init.normal_(self.byte_embedding.weight, mean=0.0, std=0.005)
         
         #2. Force the Stretching Engine to generate a "quiet" dictionary
         tied_std = d_model ** -0.5
