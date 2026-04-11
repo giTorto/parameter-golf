@@ -9,7 +9,7 @@ from transformer_layers import CastedLinear, CausalSelfAttention, MLP, RMSNorm
 
 class DictionaryFactory(nn.Module):
 
-    def __init__(self, vocab_size: int, max_bytes: int=8, bytes_dim: int=16, d_model: int=512):
+    def __init__(self, vocab_size: int, max_bytes: int=8, bytes_dim: int=16, d_model: int=384):
         super().__init__()
         self.vocab_size = vocab_size
         
@@ -20,7 +20,7 @@ class DictionaryFactory(nn.Module):
         self.byte_embedding = nn.Embedding(260, bytes_dim, padding_idx=0)
 
         # 2. simplified H-Net, stretching bytes to d_model
-        self.stretching_engine = nn.Linear(max_bytes * byte_dim, d_model)
+        self.stretching_engine = nn.Linear(max_bytes * bytes_dim, d_model)
 
         # 1. Initialize the byte embeddings with normal distribution
         nn.init.normal_(self.byte_embed.weight, mean=0.0, std=0.005)
