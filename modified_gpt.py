@@ -32,16 +32,11 @@ class DictionaryFactory(nn.Module):
         # 3. Zero out the bias so it doesn't skew the dictionary off-center
         nn.init.zeros_(self.stretching_engine.bias)
 
-    def forward(self, input_ids: Tensor) -> Tensor:
-        # 1. Get the byte embeddings
-        byte_embeddings = self.byte_embedding(input_ids)
-
-        # Flatten the 8 bytes into a single 128-length array per word
-        flattened = barcodes.view(self.vocab_size, -1)        
-        
-        # 2. Stretch the bytes to d_model
-        stretched_bytes = self.stretching_engine(flattened)
-        return stretched_bytes
+    def forward(self, byte_indices: Tensor) -> Tensor:
+        # byte_indices: (vocab_size, max_bytes) token indices on same device as module
+        byte_embeddings = self.byte_embedding(byte_indices)
+        flattened = byte_embeddings.view(byte_indices.size(0), -1)
+        return self.stretching_engine(flattened)
 
 class Block(nn.Module):
     def __init__(
@@ -92,12 +87,14 @@ class ModifiedGPT(nn.Module):
         self.tie_embeddings = tie_embeddings
         self.tied_embed_init_std = tied_embed_init_std
         self.logit_softcap = logit_softcap
-        self.factory = DictionaryFactory(vocab_size, model_dim)
         self.num_encoder_layers = num_layers // 2
         self.num_decoder_layers = num_layers - self.num_encoder_layers
         self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
-        max_bytes = analyze_vocab_lengths('./data/tokenizers/fineweb_1024_bpe.model')
-        self.byte_table = build_byte_table('./data/tokenizers/fineweb_1024_bpe.model', max_bytes)
+        max_bytes = analyze_vocab_lengths("./data/tokenizers/fineweb_1024_bpe.model")
+        bytes_dim = 16
+        self.factory = DictionaryFactory(vocab_size, max_bytes, bytes_dim=bytes_dim, d_model=model_dim)
+        # Buffer so .to(device) / DDP keep indices on the same device as embeddings (required for compile).
+        self.register_buffer("byte_table", build_byte_table("./data/tokenizers/fineweb_1024_bpe.model", max_bytes))
         self.skip_weights = nn.Parameter(torch.ones(self.num_skip_weights, model_dim, dtype=torch.float32))
         self.blocks = nn.ModuleList(
             [
@@ -146,7 +143,7 @@ class ModifiedGPT(nn.Module):
         x = self.final_norm(x).reshape(-1, x.size(-1))
         targets = target_ids.reshape(-1)
         if self.tie_embeddings:
-            logits_proj = F.linear(x, self.factory.byte_embedding.weight)
+            logits_proj = F.linear(x, ghost_dict)
         else:
             if self.lm_head is None:
                 raise RuntimeError("lm_head is required when tie_embeddings=False")
