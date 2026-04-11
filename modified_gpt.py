@@ -97,7 +97,7 @@ class ModifiedGPT(nn.Module):
         self.num_decoder_layers = num_layers - self.num_encoder_layers
         self.num_skip_weights = min(self.num_encoder_layers, self.num_decoder_layers)
         max_bytes = analyze_vocab_lengths('./data/tokenizers/fineweb_1024_bpe.model')
-        self.byte_table = build_byte_table(vocab_size, max_bytes)
+        self.byte_table = build_byte_table('./data/tokenizers/fineweb_1024_bpe.model', max_bytes)
         self.skip_weights = nn.Parameter(torch.ones(self.num_skip_weights, model_dim, dtype=torch.float32))
         self.blocks = nn.ModuleList(
             [
