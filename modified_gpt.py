@@ -20,7 +20,15 @@ class DictionaryFactory(nn.Module):
         self.byte_embedding = nn.Embedding(261, bytes_dim, padding_idx=0)
 
         # 2. simplified H-Net, stretching bytes to d_model
-        self.stretching_engine = nn.Linear(max_bytes * bytes_dim, d_model)
+        # original stretching engine 
+        # self.stretching_engine = nn.Linear(max_bytes * bytes_dim, d_model)
+        # modified stretching engine 
+        hidden_dim = 256
+        self.stretching_engine = nn.Sequential(
+            nn.Linear(max_bytes * bytes_dim, hidden_dim),
+            nn.GeLU(),
+            nn.Linear(hidden_dim, d_model),
+        )
 
         # 1. Initialize the byte embeddings with normal distribution
         nn.init.normal_(self.byte_embedding.weight, mean=0.0, std=0.005)
