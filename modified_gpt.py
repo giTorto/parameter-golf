@@ -26,7 +26,7 @@ class DictionaryFactory(nn.Module):
         hidden_dim = 256
         self.stretching_engine = nn.Sequential(
             nn.Linear(max_bytes * bytes_dim, hidden_dim),
-            nn.GeLU(),
+            nn.GELU(),
             nn.Linear(hidden_dim, d_model),
         )
 
