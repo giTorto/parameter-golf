@@ -6,7 +6,7 @@ from find_ideal_byte_length import BYTE_BARCODE_VOCAB_SIZE, analyze_vocab_length
 from transformer_layers import CastedLinear, CausalSelfAttention, MLP, RMSNorm
 
 
-class GeluDictionaryFactory(DictionaryFactory):
+class GeluDictionaryFactory(nn.Module):
     def __init__(self, vocab_size: int, max_bytes: int=8, bytes_dim: int=16, d_model: int=384):
         self.vocab_size = vocab_size
         self.tied_std = d_model ** -0.5
