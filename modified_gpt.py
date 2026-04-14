@@ -6,6 +6,41 @@ from find_ideal_byte_length import BYTE_BARCODE_VOCAB_SIZE, analyze_vocab_length
 from transformer_layers import CastedLinear, CausalSelfAttention, MLP, RMSNorm
 
 
+class GeluDictionaryFactory(DictionaryFactory):
+    def __init__(self, vocab_size: int, max_bytes: int=8, bytes_dim: int=16, d_model: int=384):
+        self.vocab_size = vocab_size
+        self.tied_std = d_model ** -0.5
+
+        # 1. The Barcode Maker (260 slots)
+        # 0 = Padding
+        # 1-256 = Standard text + Byte Fallbacks
+        # 257-259 = Control Tokens (<s>, </s>, <unk>, <pad>)
+        self.byte_embedding = nn.Embedding(261, bytes_dim, padding_idx=0)
+
+        self.stretching_engine_f1 = nn.Linear(max_bytes * bytes_dim, hidden_dim) 
+        self.gelu = nn.GeLU()
+        self.stretching_engine_f2 = nn.Linear(hidden_dim, d_model)
+
+        # 1. Initialize the byte embeddings with normal distribution
+        nn.init.kaiming_normal_(self.stretching_engine_f1.weight, mode='fan_in', nonlinearity='leaky_relu')
+        
+        #2. Force the Stretching Engine to generate a "quiet" dictionary
+        nn.init.normal_(self.stretching_engine_f2.weight, mean=0.0, std=self.tied_std)
+
+        # 3. Zero out the bias so it doesn't skew the dictionary off-center
+        nn.init.zeros_(self.stretching_engine_f1.bias)
+        nn.init.zeros_(self.stretching_engine_f2.bias)
+
+    def forward(self, byte_indices: Tensor) -> Tensor:
+        # byte_indices: (vocab_size, max_bytes) token indices on same device as module
+        byte_embeddings = self.byte_embedding(byte_indices)
+        flattened = byte_embeddings.view(byte_indices.size(0), -1)
+        stretched_bytes = self.stretching_engine_f1(flattened)
+        stretched_bytes = self.gelu(stretched_bytes)
+        stretched_bytes = self.stretching_engine_f2(stretched_bytes)
+        return stretched_bytes
+
+
 
 class DictionaryFactory(nn.Module):
 
@@ -21,21 +56,14 @@ class DictionaryFactory(nn.Module):
 
         # 2. simplified H-Net, stretching bytes to d_model
         # original stretching engine 
-        # self.stretching_engine = nn.Linear(max_bytes * bytes_dim, d_model)
-        # modified stretching engine 
-        hidden_dim = 256
-        self.stretching_engine = nn.Sequential(
-            nn.Linear(max_bytes * bytes_dim, hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, d_model),
-        )
+        self.stretching_engine = nn.Linear(max_bytes * bytes_dim, d_model)
 
         # 1. Initialize the byte embeddings with normal distribution
         nn.init.normal_(self.byte_embedding.weight, mean=0.0, std=0.005)
         
         #2. Force the Stretching Engine to generate a "quiet" dictionary
-        tied_std = d_model ** -0.5
-        nn.init.normal_(self.stretching_engine.weight, mean=0.0, std=tied_std)
+        self.tied_std = d_model ** -0.5
+        nn.init.normal_(self.stretching_engine.weight, mean=0.0, std=self.tied_std)
 
         # 3. Zero out the bias so it doesn't skew the dictionary off-center
         nn.init.zeros_(self.stretching_engine.bias)
